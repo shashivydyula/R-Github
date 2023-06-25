@@ -1,0 +1,723 @@
+---
+title: "IMDB Movies Analysis"
+author: "Dr. Shashikanth Vydyula"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    highlight: pygments
+    code_folding: hide
+    
+---
+
+```{r steup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = NA,
+  warning= FALSE,
+  message = FALSE
+   
+    
+)
+```
+
+***
+<center>![](https://images.unsplash.com/photo-1616530940355-351fabd9524b?ixlib=rb-4.0.3&ixid=MnwxMjA3fDB8MHxwaG90by1wYWdlfHx8fGVufDB8fHx8&auto=format&fit=crop&w=435&q=80)</center>
+
+***
+
+```{r}
+# Load Packages
+
+## essential R packages for data science
+library('tidyverse') 
+library('data.table')
+
+## visualization
+library('ggplot2') 
+library("ggtext")
+library("highcharter")
+library('gganimate')
+library('wordcloud')
+library('wordcloud2')
+library('RColorBrewer')
+library('scales')
+
+library('dplyr') ## data manipulation
+library('readr') ## input/output
+library('skimr') ## overview
+library('tibble') ## data wrangling
+library('tidyr') ## data wrangling
+library('purrr') ## data wrangling
+library('stringr') ## string manipulation
+library('forcats') ## factor manipulation
+library('janitor') ## data cleaning
+library('zoo') #year format
+
+```
+
+***
+
+```{r}
+imdb_movies<-fread("C:/Shashi/Data & Dashboards/Datasets/movies.csv", stringsAsFactors = FALSE)
+tibble(imdb_movies)
+```
+
+***
+
+
+```{r}
+imdb_movies$year<-gsub("[I]","",imdb_movies$year)
+imdb_movies$year<-gsub("[II]","",imdb_movies$year)
+imdb_movies$year<-gsub("[III]","",imdb_movies$year)
+imdb_movies$year<-gsub("[IV]","",imdb_movies$year)
+imdb_movies$year<-gsub("[IX]","",imdb_movies$year)
+imdb_movies$year<-gsub("[V]","",imdb_movies$year)
+imdb_movies$year<-gsub("[VII]","",imdb_movies$year)
+imdb_movies$year<-gsub("[VII]","",imdb_movies$year)
+imdb_movies$year<-gsub("[XVII]","",imdb_movies$year)
+
+imdb_movies$year<-str_squish(imdb_movies$year)
+```
+
+***
+
+# Top 10 Movies with highest number of user votes
+```{r}
+imdb_movies$votes<-as.numeric(gsub(",","", imdb_movies$votes)) # remove commas and make votes column as numeric
+
+votes<-imdb_movies %>% 
+  arrange(desc(votes))
+
+top_10_votes<-votes %>% slice(1:10)
+
+
+highchart() %>% 
+  hc_chart(type="bar", options3d=list(enabled=TRUE, alpha=15, beta=20)) %>% 
+  hc_xAxis(categories=top_10_votes$title) %>% 
+  hc_add_series(data=top_10_votes$votes, name="Top 10 Movies With Most User Votes") %>% 
+  hc_add_theme(hc_theme_google()) %>% 
+  hc_title(text="Top 10 Movies With Most User Votes")
+
+```
+
+***
+
+# Genres: Which Genre has Most Movies
+```{r}
+
+imdb_movies$genre <- str_replace_all(imdb_movies$genre, "Sci-Fi", "SciFi")
+imdb_movies$genre <- str_replace_all(imdb_movies$genre, "Film-Noir", "Noir")
+
+movie_genre<-separate(imdb_movies, genre, into=c("genre1", "genre2", "genre3", "genre4"))
+
+
+movie_genre[is.na(movie_genre)]<-"" # replace NA with blanks
+
+top_genre1<-movie_genre %>% 
+  count(genre1)
+
+top_genre2<-movie_genre %>% 
+  count(genre2)
+
+top_genre3<-movie_genre %>% 
+  count(genre3)
+
+top_genre4<-movie_genre %>% 
+  count(genre4)
+
+colnames(top_genre1)[1]<-"genre" #rename column names genre1-4 as genre to join
+colnames(top_genre2)[1]<-"genre"
+colnames(top_genre3)[1]<-"genre"
+colnames(top_genre4)[1]<-"genre"
+
+genres1<-data.frame(full_join(top_genre1, top_genre2, by="genre"))
+genres2<-data.frame(full_join(top_genre3, top_genre4, by="genre"))
+genres<-data.frame(full_join(genres1, genres2, by="genre"))
+
+genres[is.na(genres)]<-0 #replace NA with 0
+
+genres<-genres %>% 
+  mutate(total_count=(n.x.x + n.x.y + n.y.x + n.y.y)) #sum genre count
+
+
+genres<-genres %>% select(genre, total_count)
+
+
+genres<-genres[!genres$genre=="",] # remove blank rows
+
+
+genres<-genres %>% 
+  arrange(desc(total_count))
+
+wordcloud(words = genres$genre, freq = genres$total_count,scale=c(2,0.15),
+          max.words=30, colors=brewer.pal(8, "Dark2")) #Wordcloud
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=TRUE, alpha=15, beta=20)) %>% 
+  hc_xAxis(categories=genres$genre) %>% 
+  hc_add_series(data=genres$total_count, name="Genres and Number of Movies") %>% 
+  hc_add_theme(hc_theme_sandsignika()) %>% 
+  hc_title(text="Genres and Movie Count")
+```
+
+***
+<div style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#FFBD33;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px">
+<p style="padding: 10px;
+              color:white;">
+Most movies are from genre Drama.
+</p>
+</div>
+
+# Movies with long runtime
+```{r}
+summary(imdb_movies$runtime) #run time is in chr format. Must convert to numeric
+
+imdb_movies$runtime<-as.numeric(gsub("min","",imdb_movies$runtime))
+
+runtime<-imdb_movies %>% select(title, runtime)
+
+top_runtime<-runtime %>% 
+  arrange(desc(runtime)) %>% 
+  filter(runtime>180)
+
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=TRUE, alpha=15, beta=45)) %>% 
+  hc_xAxis(categories=top_runtime$title) %>% 
+  hc_add_series(data=top_runtime$runtime, name="Runtime") %>% 
+  hc_add_theme(hc_theme_bloom()) %>% 
+  hc_title(text="Movies With Runtime Greater than 3 Hours (180 mins)")
+
+```
+
+***
+
+# Movie Certificate (Some countries certify their movies as per age (Ex: 6, 7,12,16, 18 etc)
+```{r}
+movie_certificate<-imdb_movies %>% 
+  select(title, certificate)
+
+movie_certificate<-movie_certificate %>% 
+  count(certificate)
+
+movie_certificate<-movie_certificate[!movie_certificate$certificate==""]
+movie_certificate<-movie_certificate[!movie_certificate$certificate=="(Banned)"]
+
+movie_certificate<-movie_certificate %>% 
+  arrange(desc(n))
+
+
+movie_certificate%>% 
+  hchart("pie", hcaes(x=certificate, y=n),
+name="Movie Certificates")
+```
+
+***
+<div style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#FFBD33;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px">
+<p style="padding: 10px;
+              color:white;">
+R, A, U/A and U has most movies.
+</p>
+</div>
+
+
+# Movies with high metascore above 90
+```{r}
+metascore_movies<-imdb_movies %>% select(title, metascore) %>% 
+  filter(metascore>90)
+
+metascore_movies<-metascore_movies %>% 
+  arrange(desc(metascore))
+
+highchart() %>% 
+  hc_chart(type="line", options3d=list(enabled=TRUE, alpha=15, beta=20)) %>% 
+  hc_xAxis(categories=metascore_movies$title) %>% 
+  hc_add_series(data=metascore_movies$metascore, name="Metascore>90") %>% 
+  hc_add_theme(hc_theme_sandsignika()) %>% 
+  hc_title(text="Movies with Metascore>90")
+```
+
+***
+
+# Counting movies against metascore
+```{r}
+movie_score<-imdb_movies %>% 
+  select(title, metascore) %>% 
+  as.data.frame()
+
+movie_count<-movie_score %>% 
+  group_by(metascore) %>% 
+  summarise(count=n())
+
+
+movie_count<-na.omit(movie_count)
+
+highchart() %>% 
+  hc_chart(type="area", options3d=list(enabled=TRUE, alpha=15, beta=15)) %>% 
+  hc_xAxis(categories=movie_count$metascore) %>% 
+  hc_add_series(data=movie_count$count, name="Number of Movies") %>% 
+  hc_add_theme(hc_theme_google()) %>% 
+  hc_title(text="Movies Count of Metascores from 0-100")
+```
+
+***
+
+<div style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#FFBD33;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px">
+<p style="padding: 10px;
+              color:white;">
+Most number of movies have metascore from 40-70.
+</p>
+</div>
+
+
+
+# Top 10 Highest grossing movies in USA and Canada
+```{r}
+grossing<-imdb_movies %>% 
+  select(title, gross)
+
+grossing$gross <-gsub("[$]","",grossing$gross)
+grossing$gross<-gsub("[M]", "", grossing$gross)
+grossing$gross<-as.numeric(as.character(grossing$gross))
+
+grossing$gross<-grossing$gross*1000000
+
+grossing<-grossing %>% 
+  arrange(desc(gross))
+
+top_10_grossing<-grossing %>% 
+  slice(1:10)
+
+highchart() %>% 
+  hc_chart(type="bar", options3d=list(enabled=TRUE, alpha=15, beta=15)) %>% 
+  hc_xAxis(categories=top_10_grossing$title) %>% 
+  hc_add_series(data=top_10_grossing$gross, name="Gross in Millions ($)") %>% 
+  hc_add_theme(hc_theme_ffx()) %>% 
+  hc_title(text="Top 10 Grossing Movies in USA & Canada")
+```
+
+***
+
+# Top 10 Highest and Least rated movies
+```{r}
+top_rated<-imdb_movies %>% select(title, rating)
+top_rated<-top_rated %>% arrange(desc(rating))
+top_10_rated<-top_rated %>% slice(1:10)
+
+least_10_rated<-dput(top_rated[order(top_rated$rating)[1:10],])
+
+plot1<-highchart() %>% 
+  hc_chart(type="bar", options3d=list(enabled=TRUE, alpha=15, beta=15)) %>% 
+  hc_xAxis(categories=top_10_rated$title) %>% 
+  hc_add_series(data=top_10_rated$rating, name="Rating") %>% 
+  hc_add_theme(hc_theme_ffx()) %>% 
+  hc_title(text="Top 10 Movies with Higest Rating", align='center')
+
+
+plot2<-highchart() %>% 
+  hc_chart(type="bar", options3d=list(enabled=TRUE, alpha=15, beta=15)) %>% 
+  hc_xAxis(categories=least_10_rated$title) %>% 
+  hc_add_series(data=least_10_rated$rating, name="Rating") %>% 
+  hc_add_theme(hc_theme_sandsignika()) %>% 
+  hc_title(text="Bottom 10 Movies with Lowest Rating", align='center')
+
+highcharter::hw_grid(
+  plot1,
+  plot2) %>% 
+  htmltools::browsable()
+```
+
+***
+
+# Director with most movies (in the dataset)
+```{r}
+director<-imdb_movies %>% 
+  select(director)
+
+director<-director %>% 
+  count(director)
+director<-director %>% 
+  arrange(desc(n))
+
+
+director<-director %>% filter(n>15)
+
+
+word_cloud<-wordcloud(words = director$director, freq = director$n, scale=c(1.5,0.5),
+                      max.words = 20, colors=brewer.pal(8, "Dark2"))
+
+
+
+director_chart<-
+  highchart() %>% 
+  hc_chart(type="bar") %>% 
+  hc_xAxis(categories=director$director) %>% 
+  hc_add_series(data=director$n, name="Number of Movies") %>% 
+  hc_add_theme(hc_theme_handdrawn()) %>% 
+  hc_title(text="Directors with most Movies (more than 15)")
+
+director_chart
+
+```
+
+***
+<div style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#FFBD33;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px">
+<p style="padding: 10px;
+              color:white;">
+Woody Allen has directed most movies.
+</p>
+</div>
+
+# Actors with most movies (minimum 35 movies)
+```{r}
+movie_star1<-imdb_movies %>% 
+  select(cast1) %>% 
+  count(cast1) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+  rename(total_movies=n) %>% 
+  rename(actor=cast1)
+
+movie_star2<-imdb_movies %>% 
+  select(cast2) %>% 
+  count(cast2) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+  rename(total_movies=n) %>% 
+  rename(actor=cast2)
+
+movie_star3<-imdb_movies %>% 
+  select(cast3) %>% 
+  count(cast3) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+  rename(total_movies=n) %>% 
+  rename(actor=cast3)
+
+movie_star4<-imdb_movies %>% 
+  select(cast4) %>% 
+  count(cast4) %>% 
+  arrange(desc(n)) %>% 
+  as.data.frame() %>% 
+  rename(total_movies=n) %>% 
+  rename(actor=cast4)
+
+movie_stara<-left_join(movie_star1, movie_star2, by="actor")
+movie_starb<-left_join(movie_star3, movie_star4, by="actor")
+movie_stars<-left_join(movie_stara, movie_starb, by="actor")
+
+movie_stars[is.na(movie_stars)]<-0
+
+movie_stars<-movie_stars %>% 
+  mutate(total_movies=total_movies.x.x+total_movies.y.x+total_movies.x.y+total_movies.y.y)
+
+movie_stars<-movie_stars %>% 
+  select(actor, total_movies) %>% 
+  arrange(desc(total_movies))
+
+movie_stars<-movie_stars %>% 
+  filter(total_movies>34) %>% 
+  as.data.frame()
+
+movie_stars<-movie_stars[!movie_stars$actor=="",]
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=TRUE, alpha=15, beta=35)) %>% 
+  hc_xAxis(categories=movie_stars$actor) %>% 
+  hc_add_series(data=movie_stars$total_movies, name="Number of Movies") %>% 
+  hc_add_theme(hc_theme_google()) %>% 
+  hc_title(text="Actors With Most Movies (>=35")
+```
+
+***
+<div style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#FFBD33;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px">
+<p style="padding: 10px;
+              color:white;">
+Robert De Niro acted in most movvies (73).
+</p>
+</div>
+
+# Average Earnings by Genre
+
+```{r}
+gross_cleaning<-movie_genre %>% 
+  select(genre1, genre2, genre3, genre4, gross)
+
+gross_cleaning$gross<-gsub("[$]","",gross_cleaning$gross)
+gross_cleaning$gross<-gsub("[M]","",gross_cleaning$gross)
+gross_cleaning$gross<-as.numeric(as.character(gross_cleaning$gross))
+
+gross_cleaning$gross<-gross_cleaning$gross*1000000
+
+gross1<-gross_cleaning %>% 
+  select(genre1, gross) %>% 
+  group_by(genre1) %>% 
+  summarise(Average = mean(gross, na.rm = TRUE)) %>% 
+  rename(genre=genre1)
+
+gross2<-gross_cleaning %>% 
+  select(genre2, gross) %>% 
+  group_by(genre2) %>% 
+  summarise(Average = mean(gross, na.rm = TRUE)) %>% 
+  rename(genre=genre2)
+
+gross3<-gross_cleaning %>% 
+  select(genre3, gross) %>% 
+  group_by(genre3) %>% 
+  summarise(Average = mean(gross, na.rm = TRUE)) %>% 
+  rename(genre=genre3)
+
+gross4<-gross_cleaning %>% 
+  select(genre4, gross) %>% 
+  group_by(genre4) %>% 
+  summarise(Average = mean(gross, na.rm = TRUE)) %>% 
+  rename(genre=genre4)
+
+gross_a<-left_join(gross1, gross2, by="genre")
+gross_b<-left_join(gross3, gross4, by="genre")
+gross<-left_join(gross_a, gross_b, by="genre")
+
+gross[is.na(gross)]<-0
+
+gross<-gross %>% 
+  mutate(total_gross=Average.x.x+Average.y.x+Average.x.y+Average.y.y)
+
+final_gross<-gross %>% 
+  select(genre, total_gross) %>% 
+  arrange(desc(total_gross))
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=TRUE, alpha=15, beta=15)) %>% 
+  hc_xAxis(categories=final_gross$genre) %>% 
+  hc_add_series(data=final_gross$total_gross, name="Gross in M") %>% 
+  hc_add_theme(hc_theme_smpl()) %>% 
+  hc_title(text="Average Earnings of Each Genre in US & Canada")
+```
+
+***
+<div style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#FFBD33;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px">
+<p style="padding: 10px;
+              color:white;">
+Adventure genre has most earnings.
+</p>
+</div>
+
+# Number of movies released per year since 1990 (Animated Plot)
+```{r}
+year<-imdb_movies %>% 
+  select(year)
+
+year$year<-as.numeric(as.character(year$year))
+
+year<-na.omit(year)
+
+
+year<-year %>%
+  count(year) %>% 
+  rename(number_of_movies=n) %>% 
+  arrange(desc(number_of_movies))
+
+modern_movie_count<-year %>% 
+  filter(year>1990)
+
+
+view(modern_movie_count)
+
+modern_movie_count<-na.omit(modern_movie_count)
+
+modern_movie_count$year<-as.Date(as.yearmon(modern_movie_count$year)) # beginning of year
+
+movie_count<-
+  ggplot(data = modern_movie_count, aes(x=year,y=number_of_movies, color=number_of_movies))+
+  geom_line(size=1.2)+
+  xlab("Year")+
+  ylab("Number of Movies Per Year")+
+  scale_y_continuous(labels = scales::label_number_si())+
+  theme(text = element_text(family = "Manga Temple", colour = "#003057"),
+        panel.border = element_blank(),
+        panel.background = element_blank(),
+        plot.background = element_rect(fill = "#FFF9F3", colour = NA),
+        legend.position = "none")
+# +transition_reveal(year)+
+# ease_aes('cubic-in-out')
+
+#year_movies<-animate(movie_count, fps = 24, duration=10, height = 4, width = 7, units="in", res = 150)
+
+#anim_save("year_movies.gif", year_movies)
+
+```
+<img src="https://raw.githubusercontent.com/shashivydyula/images-repo/main/year_movies.gif">
+
+***
+# Top 5 genres and the number of movies of each genre in past 10 years
+```{r}
+genre_years<-movie_genre %>% 
+  select(year, genre1, genre2, genre3)
+
+genre_years<-genre_years %>% 
+  filter(year>2011)
+
+view(genre_years)
+
+genre_years<- genre_years %>% mutate_all(na_if,"")
+genre_years<-na.omit(genre_years)
+
+genre_years<-
+  genre_years %>% 
+  pivot_longer(cols = -year, values_to = 'genre') %>% 
+  count(year, genre, name = 'count')
+
+
+genre_years<-filter(genre_years, genre %in%  c("Drama", "Comedy", "Action", "Crime", "Romance"))
+
+genre_years$year<-as.numeric(as.character(genre_years$year))
+
+genre_years$year<-as.Date(as.yearmon(genre_years$year))
+
+genre_count<-
+  ggplot(data = genre_years, aes(x=year,y=count, color=genre))+
+  geom_line(size=1.2)+
+  xlab("Year")+
+  ylab("Number of Movies for a genre Per Year")+
+  scale_y_continuous(labels = scales::label_number_si())+
+  theme(plot.background = element_rect(fill="#c0d6e4"),
+        panel.background = element_rect(fill = "#c0d6e4"),
+        panel.grid.minor = element_blank(),
+        plot.title = element_text(size = 25, family = "News Gothic Condensed", margin=margin(10,0,10,0)),
+        plot.subtitle = element_text(size = 15, family = "News Gothic Condensed", margin=margin(0,0,10,0)),
+        axis.text.x = element_text(size = 10, family = "News Gothic Condensed"),
+        axis.title.x =  element_text(size = 15, family = "News Gothic Condensed", margin=margin(10,0,10,0)),
+        axis.text.y = element_text(size = 10, family = "News Gothic Condensed"),
+        axis.title.y =  element_text(size = 15, family = "News Gothic Condensed", margin=margin(0,8,0,11)),
+        legend.background =element_rect(fill="#c0d6e4"),
+        legend.key =element_rect(fill="#c0d6e4")) +
+  scale_color_manual(values = c("#4c00ff", "#d80621","#ff34e2", "#404000", "#003057"))+
+  labs(color="Genre", family = "News Gothic Condensed", size = 15)
+
+#+ transition_reveal(year)
+#+ anim_save("genre_count.gif", genre_count)
+```
+
+****
+<img src="https://raw.githubusercontent.com/shashivydyula/images-repo/main/genre_count.gif">
+
+***
+
+# Race bar: All Genres
+```{r}
+bar_genre<-movie_genre %>% 
+  select(year, genre1, genre2, genre3)
+
+
+bar_genre<-
+  bar_genre %>% 
+  pivot_longer(cols = -year, values_to = 'genre') %>% 
+  count(year, genre, name = 'count')
+
+bar_genre<- bar_genre %>% mutate_all(na_if,"")
+bar_genre<-na.omit(bar_genre)
+
+
+bar_genre$year<-as.numeric(as.character(bar_genre$year))
+
+bar_new<-bar_genre %>% 
+  group_by(genre, year) %>% 
+  summarise(total_count=sum(count)) %>% 
+  mutate(tolsum=cumsum(total_count))
+
+
+bar_new2<-bar_new %>% 
+  group_by(year) %>% 
+  arrange(year, -tolsum) %>% 
+  mutate(rank=1:n()) %>% 
+  filter(rank<=10)
+
+my_plot<-bar_new2 %>% 
+  ggplot()+
+  aes(xmin=0,
+      xmax=tolsum)+
+  aes(ymin=rank - 0.45,
+      ymax=rank + 0.45,
+      y=rank)+
+  facet_wrap(~year)+
+  geom_rect(alpha=.7)+
+  aes(fill=genre)+
+  scale_fill_viridis_d(option="magma",
+                       direction = -1)+
+  scale_x_continuous(
+    limits=c(0, 6000),
+    breaks=c(0, 100, 1000, 3000, 5770))+
+  geom_text(col="darkblue",
+            hjust="right",
+            aes(label=genre),
+            x=100)+
+  geom_text(col="darkblue",
+            hjust="right",
+            aes(label=paste(tolsum), x=5000))+
+  scale_y_reverse()+
+  labs(fill=NULL)+
+  ggtitle("Number of movies per genre")+
+  labs(x="Total Movies")+
+  labs(y="Genres")+
+  theme_classic()
+
+p<-my_plot+
+  facet_null()+
+  geom_text(x=6000, y=-1,
+            family="Times",
+            aes(label=as.character(year)),
+            size=12, col="green")+
+  aes(group=genre)
+
+#+ transition_time(year)
+
+#+ genre_year.gif<-animate(p, nframes=400, fps=5, width=1000)
+
+
+#+ anim_save("genre_year.gif", genre_year.gif)
+
+```
+
+***
+
+<img src="https://raw.githubusercontent.com/shashivydyula/images-repo/main/genre_year.gif">
+
+***

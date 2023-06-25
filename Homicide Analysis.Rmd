@@ -1,0 +1,232 @@
+---
+title: "Homicide Analysis"
+author: "Dr. Shashikanth Vydyula"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    highlight: pygments
+    code_folding: show
+    
+---
+
+
+
+```{r steup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = NA,
+  warning= FALSE,
+  message = FALSE,
+  fig.align='center'
+   
+    
+)
+```
+
+```{r}
+my_essential_packages<-c("tidyverse", "data.table", "dplyr", "readr", "skimr",
+                         "tibble", "tidyr", "purrr", "stringr", "forcats", 
+                         "janitor", "Tmisc", "class", "lubridate",
+                         "forecast", "timetk", "zoo",  "ggplot2",  
+                         "highcharter", "gganimate", "geonames", "ggmap", "maps", "plotly", 
+                         "RColorBrewer" ,"leaflet", "htmltools", "htmlwidgets")
+
+invisible(lapply(my_essential_packages, require, character.only = TRUE, quietly = TRUE))
+
+```
+
+```{r}
+homicide<-fread("C:/Shashi/Data & Dashboards/Datasets/countries-by-intentional-homicide-rate.csv")
+```
+
+
+# Data Manipulation
+```{r}
+colnames(homicide)[1]<-"name" #renamed the Location Column to "name" for easy joining in highchart worldmap
+
+#Renaming some countries to populate correctly in map
+
+homicide$name[homicide$name=="United States"]<- "United States of America"
+homicide$name[homicide$name=="Tanzania"]<- "United Republic of Tanzania"
+homicide$name[homicide$name=="Burundi"]<- "Burundi"
+homicide$name[homicide$name=="Réunion"]<- "Réunion Island"
+homicide$name[homicide$name=="São Tomé and Príncipe"]<- "São Tomé and Príncipe"
+homicide$name[homicide$name=="Guinea-Bissau"]<- "Republic of Guinea-Bissau"
+```
+
+***
+
+# World Maps
+```{r}
+highchart() %>% 
+  hc_add_series_map(worldgeojson, df=homicide, value="Count", joinBy = "name") %>% 
+  hc_legend(enabled=T) %>% 
+  hc_colorAxis(minColor = "green", maxColor = "red") %>% 
+  hc_title(text="World Map - Homicides Count") %>% 
+  hc_legend(enabled=T)
+
+highchart() %>% 
+  hc_add_series_map(worldgeojson, df=homicide, value="Rate", joinBy = "name") %>% 
+  hc_legend(enabled=T) %>% 
+  hc_colorAxis(minColor = "green", maxColor = "red") %>% 
+  hc_title(text="World Map - Homicides Rate") %>% 
+  hc_legend(enabled=T)
+```
+
+***
+
+# Regioin Plots
+## Asia
+```{r}
+asia_region <- "Asia"
+asia_region_data <- homicide[homicide$Region == asia_region, ]
+
+asia <- highchart() %>%
+  hc_chart(type = "bubble") %>%
+  hc_title(text = paste("Homicide Rates by Country -", asia_region)) %>%
+  hc_xAxis(title = list(text = "Rate")) %>%
+  hc_yAxis(title = list(text = "Count")) %>%
+  hc_tooltip(
+    pointFormat = "Country: {point.name}<br/>Rate: {point.x}<br/>Count: {point.y}"
+  )
+
+asia_data_series <- data.frame(
+  name = asia_region_data$name,
+  x = asia_region_data$Rate,
+  y = asia_region_data$Count,
+  z = asia_region_data$Count
+)
+
+asia <- hc_add_series(asia, name = asia_region, data = asia_data_series)
+
+asia <- hc_colorAxis(asia, minColor = "#7cb5ec", maxColor = "#ff0000")
+
+asia
+```
+
+## Africa
+```{r}
+africa_region <- "Africa"
+africa_region_data <- homicide[homicide$Region == africa_region, ]
+
+africa <- highchart() %>%
+  hc_chart(type = "bubble") %>%
+  hc_title(text = paste("Homicide Rates by Country -", africa_region)) %>%
+  hc_xAxis(title = list(text = "Rate")) %>%
+  hc_yAxis(title = list(text = "Count")) %>%
+  hc_tooltip(
+    pointFormat = "Country: {point.name}<br/>Rate: {point.x}<br/>Count: {point.y}"
+  )
+
+africa_data_series <- data.frame(
+  name = africa_region_data$name,
+  x = africa_region_data$Rate,
+  y = africa_region_data$Count,
+  z = africa_region_data$Count
+)
+
+
+africa <- hc_add_series(africa, name = africa_region, data = africa_data_series)
+
+africa <- hc_colorAxis(africa, minColor = "#7cb5ec", maxColor = "#ff0000")
+
+africa
+
+```
+
+## Americas
+```{r}
+americas_region <- "Americas"
+americas_region_data <- homicide[homicide$Region == americas_region, ]
+
+americas <- highchart() %>%
+  hc_chart(type = "bubble") %>%
+  hc_title(text = paste("Homicide Rates by Country -", americas_region)) %>%
+  hc_xAxis(title = list(text = "Rate")) %>%
+  hc_yAxis(title = list(text = "Count")) %>%
+  hc_tooltip(
+    pointFormat = "Country: {point.name}<br/>Rate: {point.x}<br/>Count: {point.y}"
+  )
+
+americas_data_series <- data.frame(
+  name = americas_region_data$name,
+  x = americas_region_data$Rate,
+  y = americas_region_data$Count,
+  z = americas_region_data$Count
+)
+
+
+americas <- hc_add_series(americas, name = americas_region, data = americas_data_series)
+
+americas <- hc_colorAxis(americas, minColor = "#7cb5ec", maxColor = "#ff0000")
+
+americas
+
+```
+
+
+## Europe
+```{r}
+europe_region <- "Europe"
+europe_region_data <- homicide[homicide$Region == europe_region, ]
+
+europe <- highchart() %>%
+  hc_chart(type = "bubble") %>%
+  hc_title(text = paste("Homicide Rates by Country -", europe_region)) %>%
+  hc_xAxis(title = list(text = "Rate")) %>%
+  hc_yAxis(title = list(text = "Count")) %>%
+  hc_tooltip(
+    pointFormat = "Country: {point.name}<br/>Rate: {point.x}<br/>Count: {point.y}"
+  )
+
+europe_data_series <- data.frame(
+  name = europe_region_data$name,
+  x = europe_region_data$Rate,
+  y = europe_region_data$Count,
+  z = europe_region_data$Count
+)
+
+
+europe <- hc_add_series(europe, name = europe_region, data = europe_data_series)
+
+europe <- hc_colorAxis(europe, minColor = "#7cb5ec", maxColor = "#ff0000")
+
+europe
+```
+
+***
+
+# Column Charts (Region and Top 10 Countries)
+```{r}
+region<-homicide %>% 
+  select(name, Region, Count, Rate) %>% 
+  group_by(Region) %>% 
+  summarise(total=sum(Count), .groups = 'drop') %>% 
+  arrange(desc(total))
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=T, alpha=15, beta=10)) %>% 
+  hc_xAxis(categories=region$Region) %>% 
+  hc_add_series(data=region$total, name="Total Count") %>% 
+  hc_title(text="Homicides by Region") %>% 
+  hc_add_theme(hc_theme_google())
+
+
+```
+
+```{r}
+top_10_countries<-homicide %>% 
+  select(name, Count) %>% 
+  arrange(desc(Count)) %>% 
+  slice(1:10)
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=T, alpha=15, beta=20)) %>% 
+  hc_xAxis(categories=top_10_countries$name) %>% 
+  hc_add_series(data=top_10_countries$Count, name="Count") %>% 
+  hc_add_theme(hc_theme_google()) %>% 
+  hc_title(text="Top 10 Countries with Most Homicides") 
+```
+

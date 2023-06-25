@@ -1,0 +1,310 @@
+---
+title: "World Alcohol Consumption"
+author: "Dr. Shashikanth Vydyula"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    highlight: pygments
+    code_folding: show
+---
+
+<style type="text/css">
+
+h1.title {
+  font-size: 38px;
+  color: DarkRed;
+  text-align: center;
+}
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+  font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkBlue;
+  text-align: center;
+}
+</style>
+
+
+***
+
+```{r steup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = NA,
+  warning= FALSE,
+  message = FALSE
+)
+```
+***
+
+# Install Packages
+```{r}
+library('tidyverse') 
+library('readr')
+library('lubridate')
+library('ggplot2')
+library('tidyr')
+library('dplyr')
+
+```
+
+***
+
+# Import Dataset
+```{r}
+alcolohol_consumption<-read.csv("C:/Shashi/Data & Dashboards/Datasets/World Alcoholic Consumption datasets.csv")
+
+head(alcolohol_consumption)
+summary(alcolohol_consumption)
+```
+
+***
+
+# Data Manipulation
+```{r}
+alcolohol_consumption$date <- lubridate::as_date(mdy(alcolohol_consumption$Date)) #Formatting Date column
+
+
+str(alcolohol_consumption)
+summary(alcolohol_consumption)
+```
+***
+```{r}
+# Gender count
+
+gender_count<-alcolohol_consumption %>% count(Gender)
+gender_count
+```
+
+
+**Women consumers are more than men**
+
+***
+```{r}
+# Country count
+country_count<-alcolohol_consumption %>% 
+  count(Countries)
+head(country_count)
+```
+***
+
+# Top alcoholic countries
+```{r}
+top_countries<-country_count[order(country_count$n, decreasing = TRUE),]
+view(top_countries)
+top_10_countries<-top_countries %>% slice(1:10)
+
+top_10_countries$Countries  <- with(top_10_countries, reorder(Countries, n))
+top_10_countries_plot<-ggplot(top_10_countries,aes(label=n,fill=Countries, y=n, x=reorder(Countries, desc(n))))+
+  geom_bar(stat="identity")+
+  geom_text(size = 3, position = position_stack(vjust = 0.5))+
+  labs(x="Country", y="Count")
+top_10_countries_plot
+```
+
+
+**China Ranks first**
+
+***
+
+
+```{r}
+mapdata <- map_data("world")
+head(mapdata)
+
+top_countries<- top_countries %>% rename("region"="Countries")
+
+top_countries$region <- recode(top_countries$region
+                                   ,'United States' = 'USA'
+                                   ,'United Kingdom' = 'UK'
+                                   , 'United Arab Emirates' ='UAE'
+)
+
+
+
+
+mapdata <- 
+  left_join(mapdata, top_countries, by='region')
+
+theme1 <- theme(
+  axis.text = element_blank(),
+  axis.line = element_blank(),
+  axis.ticks = element_blank(),
+  panel.border = element_blank(),
+  panel.grid = element_blank(),
+  axis.title = element_blank(),
+  panel.background = element_rect(fill = "grey85"),
+  plot.title = element_text(hjust = 0.5)
+)
+
+ggplot(mapdata, aes(x=long, y=lat, group=group)) + 
+  coord_fixed(1.3) +
+  geom_polygon(aes(fill = n)) +
+  scale_fill_distiller(palette ="RdBu", direction = -1) + 
+  ggtitle("World Alcohol Consumption") +
+  theme1 
+
+
+
+
+```
+
+***
+
+# Top alcoholic countries with male and female count
+```{r}
+#Male and Female count
+male_female_count<-alcolohol_consumption %>% 
+  group_by(Countries, Gender) %>% 
+  summarise(total_count=n(),.groups = 'drop')
+
+view(male_female_count)
+
+top_10_male_female_count<-
+  male_female_count[order(male_female_count$total_count, decreasing = TRUE),] %>% 
+  slice(1:19)
+
+head(top_10_male_female_count)
+
+top_10_male_female_count$Countries<-with(top_10_male_female_count,reorder(Countries,total_count))
+
+top_10_m_f_plot<-
+  ggplot(top_10_male_female_count, aes(label=total_count, fill=Gender, y=total_count,x=Countries))+
+  geom_bar(stat="identity")+
+  geom_text(size=3, position=position_stack(vjust = 0.5))+
+  labs(X="Country", y="Gender Count")+
+  coord_flip()
+top_10_m_f_plot
+
+```
+
+***
+
+
+
+# Year with highest alcohol consumptionconsumption
+```{r}
+##Before calculating the year with highest consumption we need to separate year from Date
+alcolohol_consumption$year <- lubridate::year(alcolohol_consumption$date)
+
+
+#let us separate month and date as well
+alcolohol_consumption$month <- lubridate::month(alcolohol_consumption$date) #separates month number
+alcolohol_consumption$month_name<-month.name[alcolohol_consumption$month] #gives name to the month by its number
+
+head(alcolohol_consumption)
+
+#Top Year (total)
+top_year_total<-alcolohol_consumption %>% 
+  group_by(year, Gender) %>% 
+  summarise(total_count=n(),.groups = 'drop')
+
+view(top_year_total)
+
+top_year_total_plot<-ggplot(top_year_total, aes(label=total_count, fill=Gender, y=total_count, x=year))+
+  geom_bar(stat="identity")+
+  geom_text(size=4, position=position_stack(vjust = 0.5))+
+  labs(x="Year", y="Count by year and Gender")
+
+top_year_total_plot
+
+```
+
+
+**2020 recorded high alcohol consumption than 2019.**
+
+
+***
+
+# Month with highest alcohol consumption
+```{r}
+top_month_total<-alcolohol_consumption %>% 
+  group_by(month_name, Gender) %>% 
+  summarise(total_count=n(),.groups = 'drop')
+view(top_month_total)
+
+
+top_month_total_plot<-ggplot(top_month_total, aes(label=total_count, fill=Gender, y=total_count, x=reorder(month_name, total_count)))+
+  geom_bar(stat="identity")+
+  geom_text(size=3, position=position_stack(vjust=0.25))+
+  facet_grid(~Gender)+
+  labs(x="Month in Descending Order of alcohol Consumption", y="Total Count")+
+  coord_flip()
+
+top_month_total_plot
+```
+
+
+**May has highest alcohol consumption and December has lowest.**
+
+***
+
+# Which month women consumed most
+```{r}
+women_only <- top_month_total[ which(top_month_total$Gender=='Female'), ]
+
+view(women_only)
+
+women_only_plot<-ggplot(women_only, aes(label=total_count, fill=month_name, y=total_count, x=reorder(month_name, total_count)))+
+  geom_bar(stat="identity")+
+  geom_text(size=3, position=position_stack(vjust=0.25))+
+  facet_grid(~Gender)+
+  labs(x="Month", y="Count")+
+  coord_flip()+
+  theme(legend.position = "none")
+
+women_only_plot
+```
+
+
+**Women consumed more alcohol in February.**
+
+***
+
+# Which month men consumed most
+```{r}
+men_only<-top_month_total[which(top_month_total$Gender=='Male'),]
+view(men_only)
+
+men_only_plot<-ggplot(men_only, aes(label=total_count, fill=month_name, y=total_count, x=reorder(month_name, total_count)))+
+  geom_bar(stat="identity")+
+  geom_text(size=3, position=position_stack(vjust=0.25))+
+  facet_grid(~Gender)+
+  labs(x="Month", y="Count")+
+  coord_flip()+
+  theme(legend.position = "none")
+
+men_only_plot
+```
+
+
+**Men consumed more alcohol in May.**
+
+***
+
+
+
+
+<div style="color:white;
+           display:fill;
+           border-radius:5px;
+           background-color:#5642C5;
+           font-size:110%;
+           font-family:Verdana;
+           letter-spacing:0.5px">
+
+<p style="padding: 25px;
+              color:white;
+              text-align: center">
+              Thank you🤗
+</p>
+</div>
+
+***

@@ -1,0 +1,388 @@
+---
+title: "World's Largest Countries"
+author: "Dr. Shashikanth Vydyula"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    highlight: pygments
+    code_folding: hide
+    
+---
+
+
+
+<center>![](https://raw.githubusercontent.com/shashivydyula/images-repo/main/World%20Population.png)</center>
+
+
+
+```{r steup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = NA,
+  warning= FALSE,
+  message = FALSE,
+  fig.align='center',
+  fig.height = 7,
+  fig.width = 8
+   
+    
+)
+```
+***
+
+```{r #Load Required Libraries}
+library('tidyverse') # essential R packages for data science
+library('data.table')
+library("plotly")
+library("highcharter")
+library('dplyr') # data manipulation
+library('readr') # input/output
+library('skimr') # overview
+library('tibble') # data wrangling
+library('tidyr') # data wrangling
+library('purrr') # data wrangling
+library('stringr') # string manipulation
+library('forcats') # factor manipulation
+library('janitor') # data cleaning
+library('Tmisc') # data manipulation
+library('class') # functions for classification
+library('tm')
+```
+***
+
+# Load Data and Data Manipulation
+
+```{r}
+world_population<-fread("C:/Shashi/Data & Dashboards/Datasets/World's Largest countries (population).csv")
+
+str(world_population)
+
+#convert character columns to numeric
+world_population$rank<-as.numeric(world_population$rank)
+world_population$"2023"<-as.numeric(gsub(",", "", world_population$"2023"))
+world_population$"2022"<-as.numeric(gsub(",", "", world_population$"2022"))
+world_population$density<-as.numeric(gsub(",", "", world_population$density))
+
+#convert numerical data to actual numbers
+world_population$area<-as.numeric(parse_number(world_population$area) * case_when(
+  grepl("K", world_population$area) ~ 1e3,
+  grepl("M", world_population$area) ~ 1e6,
+  grepl("B", world_population$area) ~ 1e9,
+  TRUE~1
+))
+
+world_population$land_area<-as.numeric(parse_number(world_population$land_area) * case_when(
+  grepl("K", world_population$land_area) ~ 1e3,
+  grepl("M", world_population$land_area) ~ 1e6,
+  grepl("B", world_population$land_area) ~ 1e9,
+  TRUE~1
+))
+
+
+# Rename country names to match with worldgeojson 
+world_population$name[world_population$name=="United States"]<- "United States of America"
+world_population$name[world_population$name=="Dr Congo"]<- "Democratic Republic of the Congo"
+world_population$name[world_population$name=="Tanzania"]<- "United Republic of Tanzania"
+world_population$name[world_population$name=="Republic Of The Congo"]<- "Republic of Congo"
+world_population$name[world_population$name=="Guinea-Bissau"]<- "Guinea Bissau"
+world_population$name[world_population$name=="Serbia"]<- "Republic of Serbia"
+world_population$name[world_population$name=="North Macedonia"]<- "Macedonia"
+world_population$name[world_population$name=="Bosnia And Herzegovina"]<- "Bosnia and Herzegovina"
+
+```
+
+***
+
+#  World population - 2023
+```{r}
+highchart() %>% 
+  hc_add_series_map(worldgeojson, df=world_population, value="2023",joinBy="name", name="Country:") %>% 
+  hc_legend(enabled = TRUE) %>% 
+  hc_add_theme(hc_theme_bloom()) %>% 
+  hc_colorAxis(stops=color_stops()) %>% 
+  hc_mapNavigation(enabled = TRUE) %>% 
+  hc_title(text="World Population in 2023",
+           style = list(fontSize = "24px", fontWeight = "bold", color="red"), 
+           align = "center") %>% 
+  hc_legend(enabled=F) %>% 
+  hc_tooltip(
+    useHTML = TRUE,
+    pointFormat = paste("<span style='font-size:12px'><b><u>", "{point.name}", "</u></b></span><br>",
+                        "<b>Population: </b>",
+                        "<b>", "{point.value:.0f} ", "</b><br/>", sep = ""),
+    headerFormat = ""
+  )
+```
+
+## Top 20 countries with highest population (Bubble Chart)
+```{r}
+highchart() %>% 
+  hc_chart(type = "packedbubble", height = "100%") %>% 
+  hc_title(text = "Top 20 Countries With Highest Population", align = "left") %>% 
+  hc_tooltip(useHTML = TRUE, pointFormat = '<b>{point.name}:</b> {point.value}') %>% 
+  hc_plotOptions(
+    packedbubble = list(
+      minSize = "15%",
+      maxSize = "75%",
+      zMin = 0,
+      zMax = 100,
+      layoutAlgorithm = list(
+        gravitationalConstant = 0.05,
+        splitSeries = TRUE,
+        seriesInteraction = FALSE,
+        dragBetweenSeries = TRUE,
+        parentNodeLimit = TRUE
+      ),
+      dataLabels = list(
+        enabled = TRUE,
+        format = "{point.name}",
+        filter = list(
+          property = "y",
+          operator = ">",
+          value = 250
+        ),
+        style = list(
+          color = "black",
+          textOutline = "none",
+          fontWeight = "normal"
+        )
+      )
+    )
+  ) %>% 
+  hc_add_series(
+    name = "Top 20 Countries",
+    data = list(
+      list(name = "India", value = 1422982271),
+      list(name = "China", value = 1425823821),
+      list(name = "United States of America", value = 339212631),
+      list(name = "Indonesia", value = 276553195),
+      list(name = "Pakistan", value = 238468483),
+      list(name = "Nigeria", value = 221537840),
+      list(name = "Brazil", value = 215892179),
+      list(name = "Bangladesh", value = 172202769),
+      list(name = "Russia", value = 144657545),
+      list(name = "Mexico", value = 128052132),
+      list(name = "Ethiopia", value = 125166985),
+      list(name = "Japan", value = 123576513),
+      list(name = "Philippines", value = 116580421),
+      list(name = "Egypt", value = 111973144),
+      list(name = "Democratic Republic of the Congo", value = 100846063),
+      list(name = "Vietnam", value = 98578300),
+      list(name = "Iran", value = 88892117),
+      list(name = "Turkey", value = 85623252),
+      list(name = "Germany", value = 83310824),
+      list(name = "Thailand", value = 71760801))) %>% 
+  hc_colorAxis(
+    minColor = "#FFFFFF",
+    maxColor = "#0000FF",
+    min = 71760801,
+    max = 1425823821
+  ) %>% 
+  hc_legend(
+    enabled = TRUE,
+    layout = "vertical",
+    align = "right",
+    verticalAlign = "middle",
+    reversed = TRUE,
+    labelFormatter = JS("function() {return this.name + ' (' + Highcharts.numberFormat(this.value, 0) + ')';}")
+  )
+```
+
+***
+
+# Largest Countries (Area)
+```{r}
+highchart() %>% 
+  hc_add_series_map(worldgeojson, df=world_population, value="area",joinBy="name", name="Country:") %>% 
+  hc_legend(enabled = TRUE) %>% 
+  hc_add_theme(hc_theme_bloom()) %>% 
+  hc_colorAxis(type = "linear", stops=color_stops(), min=1) %>% 
+  hc_mapNavigation(enabled = TRUE) %>% 
+  hc_title(text="Largest Countries (Area)",
+           style = list(fontSize = "24px", fontWeight = "bold", color="red"), 
+           align = "center") %>% 
+  hc_legend(enabled=F) %>% 
+  hc_tooltip(
+    useHTML = TRUE,
+    pointFormat = paste("<span style='font-size:12px'><b><u>", "{point.name}", "</u></b></span><br>",
+                        "<b>Area: </b>",
+                        "<b>", "{point.value:.0f} sq.km", "</b><br/>", sep = ""),
+    headerFormat = ""
+  )
+
+```
+***
+
+## Area vs Population - Top 20 largest Countries (area) and their population
+
+```{r}
+world_area <- world_population %>% 
+  arrange(desc(area)) %>% 
+  slice(1:20)
+
+
+
+highchart() %>% 
+  hc_chart(type="line") %>% 
+  hc_xAxis(categories=paste0(world_area$name, ", ", as.character(world_area$area), " ", "sq.km")) %>% 
+  hc_add_series(data=world_area$"2023", name="Area") %>% 
+  hc_add_theme(hc_theme_google()) %>% 
+  hc_title(text="Top 20 Largest Countries (area) and Their Population") %>% 
+  hc_tooltip(formatter = JS("function(){ 
+                          return '<b>Country:</b> ' + this.key.split(',')[0] +
+                                 '<br><b>Area:</b> ' + this.key.split(',')[1] +
+                                 '<br><b>Population:</b> ' + Highcharts.numberFormat(this.y, 0); 
+                          }")) %>% 
+  hc_yAxis(title=list(text="Population"))
+
+```
+
+***
+
+# Largest Countries (Land Area)
+```{r}
+highchart() %>% 
+  hc_add_series_map(worldgeojson, df=world_population, value="land_area",joinBy="name", name="Country:") %>% 
+  hc_legend(enabled = TRUE) %>% 
+  hc_add_theme(hc_theme_bloom()) %>% 
+  hc_colorAxis(type = "logarithmic", stops=color_stops(), min=1) %>% 
+  hc_mapNavigation(enabled = TRUE) %>% 
+  hc_title(text="Largest Countries (Land Area)",
+           style = list(fontSize = "24px", fontWeight = "bold", color="red"), 
+           align = "center") %>% 
+  hc_legend(enabled=F) %>% 
+  hc_tooltip(
+    useHTML = TRUE,
+    pointFormat = paste("<span style='font-size:12px'><b><u>", "{point.name}", "</u></b></span><br>",
+                        "<b>Land Area: </b>",
+                        "<b>", "{point.value:.0f} sq.km", "</b><br/>", sep = ""),
+    headerFormat = ""
+  )
+
+```
+
+***
+
+# Population Density
+
+```{r}
+highchart() %>% 
+  hc_add_series_map(worldgeojson, df=world_population, value="density", joinBy="name") %>% 
+  hc_legend(enabled = TRUE) %>% 
+  hc_colorAxis(type = "logarithmic", stops=color_stops(), min=1) %>% 
+  hc_mapNavigation(enabled = TRUE) %>% 
+  hc_title(text="Population Density",
+           style = list(fontSize = "24px", fontWeight = "bold", color="red"), 
+           align = "center") %>% 
+  hc_legend(enabled=F) %>% 
+  hc_tooltip(
+    useHTML = TRUE,
+    pointFormat = paste("<span style='font-size:12px'><b><u>", "{point.name}", "</u></b></span><br>",
+                        "<b>Population Density: </b>",
+                        "<b>", "{point.value:.0f}", "</b><br/>", sep = ""),
+    headerFormat = ""
+  )
+
+
+```
+
+***
+
+## Top 20 Countries With Highest Population Density
+
+```{r}
+world_population_denisty<-world_population %>% 
+  arrange(desc(density)) %>% 
+  slice(1:20)
+
+highchart() %>% 
+  hc_chart(type="line") %>% 
+  hc_xAxis(categories=paste0(world_population_denisty$name, ", ", as.character(world_population_denisty$area), " ", "sq.km")) %>% 
+  hc_add_series(data=world_population_denisty$density, name="Density") %>% 
+  hc_add_theme(hc_theme_google()) %>% 
+  hc_title(text="Top 20 Countries With Highest Population Density") %>% 
+  hc_tooltip(formatter = JS("function(){ 
+                      return '<b><u>Country:</u></b> <b>' + this.key.split(',')[0] + '</b>' +
+                             '<br><b>Area:</b> ' + this.key.split(',')[1] +
+                             '<br><b>Density:</b> ' + Highcharts.numberFormat(this.y, 0); 
+                      }"))%>% 
+  hc_yAxis(title=list(text="Density"))
+
+```
+
+***
+
+# Population Growth
+```{r}
+world_growth <- data.frame(name = world_population$`name`,
+                           growth = as.numeric(gsub("%", "", world_population$growth)),
+                           world_percent = as.numeric(gsub("%", "", world_population$`world %`)))
+
+
+highchart() %>% 
+  hc_add_series_map(worldgeojson, df=world_growth, value="growth", joinBy="name", name="Country:") %>% 
+  hc_legend(enabled = TRUE) %>% 
+  hc_colorAxis(stops=color_stops()) %>% 
+  hc_mapNavigation(enabled = TRUE) %>% 
+  hc_title(text="Population Growth",
+           style = list(fontSize = "24px", fontWeight = "bold", color="red"), 
+           align = "center") %>% 
+  hc_legend(enabled=F) %>% 
+  hc_tooltip(formatter = JS("function(){ 
+            return '<b>' + this.key + '</b><br>Population Growth: ' + this.point.value + ' %'; 
+          }"))
+
+```
+
+***
+
+## Top 20 Countries with highest growth rate
+```{r}
+growth_rate_20<-world_growth %>% 
+  arrange(desc(growth)) %>% 
+  slice(1:20)
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=T, alpha=10, beta=20)) %>% 
+  hc_xAxis(categories=growth_rate_20$name) %>% 
+  hc_add_series(
+    data=as.numeric(paste0(growth_rate_20$growth), "", "%"), 
+    tooltip=list(
+      pointFormat="<b>{point.category}</b><br/>Population Growth: {point.y}%<br/>",
+      headerFormat = ""
+    )
+  ) %>% 
+  hc_title(text="Top 20 Countries With Highest Population Growth Rate") %>% 
+  hc_add_theme(hc_theme_sandsignika())
+
+```
+
+***
+
+# Correlation
+```{r}
+world_population %>% 
+  select("2023", "2022", density, area, land_area) %>% 
+  cor() %>% 
+  hchart()
+
+```
+
+***
+<div style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#00008B;
+           font-size:150%;
+           font-family:Comic Sans;
+           letter-spacing:0.5px">
+  <p style="padding: 7px;
+            color:white;">
+    There is no direct correlation between the area and land area of the country and population. Example: Canada being second largest country in the world ranks 38 in terms of world population.</br>
+    <br>Monaco has highest population density but is one of the smallest countries.</br>
+    <br>Syria and Moldova has highest population growth rate (4.98%).</br>
+    <br>African Countries are showing more population growth.</br>
+  </p>
+</div>

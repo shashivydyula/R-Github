@@ -1,0 +1,495 @@
+---
+title: "Bladder Cancer Analysis"
+author: "Dr. Shashikanth Vydyula"
+date: "`r Sys.Date()`"
+output: 
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    highlight: pygments
+    code_folding: hide
+    
+---
+
+```{r steup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = NA,
+  warning= FALSE,
+  message = FALSE,
+  fig.align='center'
+   
+    
+)
+```
+
+***
+<center>![](https://raw.githubusercontent.com/shashivydyula/images-repo/main/bladder%20cancer.jpg)</center>
+
+***
+```{r}
+my_essential_packages<-c("tidyverse", "data.table", "dplyr", "readr", "skimr",
+                         "tibble", "tidyr", "purrr", "stringr", "forcats", 
+                         "janitor", "Tmisc", "class", "lubridate",
+                         "forecast", "timetk", "zoo",  "ggplot2",  
+                         "highcharter", "gganimate", "geonames", "ggmap", "maps", "plotly", 
+                         "RColorBrewer" ,"leaflet", "htmltools", "htmlwidgets", "gridExtra","tm", "wordcloud2", "SnowballC",
+                         "syuzhet","reshape2", "scales", "earth")
+
+invisible(lapply(my_essential_packages, require, character.only = TRUE, quietly = TRUE))
+
+
+```
+
+***
+
+```{r}
+df<-fread("C:/Shashi/Data & Dashboards/Datasets/bladder1.csv")
+
+## Replace missing values with zero
+
+df$rtumor<-gsub("\\.", "0", df$rtumor)
+
+```
+
+***
+
+# Initial Treatment and Tumor Count (by treatment)
+
+```{r}
+initial_treatment <-df %>% 
+  select(treatment, number) %>% 
+  group_by(treatment, number) %>% 
+  summarise(count = n(), .groups = "drop") %>% 
+  mutate(tumor_category = case_when(
+    number == 1 ~ "1 Tumor",
+    number == 2 ~ "2 Tumors",
+    number == 3 ~ "3 Tumors",
+    number == 4 ~ "4 Tumors",
+    number == 5 ~ "5 Tumors",
+    number == 6 ~ "6 Tumors",
+    number == 7 ~ "7 Tumors",
+    number >= 8 ~ "8 or more Tumors",
+    TRUE ~ "Other"
+  ))
+
+## Initial Tumors During Placebo Treatment
+placebo<-initial_treatment %>% 
+  filter(treatment=="placebo")
+
+placebo_chart<-highchart() %>% 
+  hc_chart(type = "column", options3d = list(enabled = TRUE, alpha = 10, beta = 15)) %>% 
+  hc_xAxis(categories = placebo$tumor_category, title = list(text = "Count")) %>% 
+  hc_add_series(data = placebo$count, name = "Count") %>%
+  hc_title(text = "Tumor Category & Their Count Treated with Placebo") %>% 
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.x + 
+                      '<br>Count: ' + this.y;
+        return tooltip;
+      }"
+    )
+  ) %>% 
+  hc_add_theme(hc_theme_sandsignika())
+
+## Initial Tumors During Pyridoxine Treatment
+
+pyridoxine<-initial_treatment %>% 
+  filter(treatment=="pyridoxine")
+
+pyridoxine_chart<-highchart() %>% 
+  hc_chart(type = "column", options3d = list(enabled = TRUE, alpha = 10, beta = 15)) %>% 
+  hc_xAxis(categories = pyridoxine$tumor_category, title = list(text = "Count")) %>% 
+  hc_add_series(data = pyridoxine$count, name = "Count") %>%
+  hc_title(text = "Tumor Category & Their Count Treated with Pyridoxine") %>% 
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.x + 
+                      '<br>Count: ' + this.y;
+        return tooltip;
+      }"
+    )
+  ) %>% 
+  hc_add_theme(hc_theme_google())
+
+
+
+## Initial Tumors During Thiotepa Treatment
+
+thiotepa<-initial_treatment %>% 
+  filter(treatment=="thiotepa")
+
+thiotepa_chart<-highchart() %>% 
+  hc_chart(type = "column", options3d = list(enabled = TRUE, alpha = 10, beta = 15)) %>% 
+  hc_xAxis(categories = thiotepa$tumor_category, title = list(text = "Count")) %>% 
+  hc_add_series(data = thiotepa$count, name = "Count") %>%
+  hc_title(text = "Tumor Category & Their Count Treated with Thiotepa") %>% 
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.x + 
+                      '<br>Count: ' + this.y;
+        return tooltip;
+      }"
+    )
+  ) %>% 
+  hc_add_theme(hc_theme_hcrt())
+
+
+highcharter::hw_grid(
+  placebo_chart,
+  pyridoxine_chart,
+  thiotepa_chart) %>% 
+  htmltools::browsable()
+
+
+```
+
+
+***
+
+# Total Initial tumors
+```{r}
+initial_tumors <- df %>%
+  group_by(number) %>%
+  summarize(count = n()) %>%
+  mutate(tumor_category = case_when(
+    number == 1 ~ "1 Tumor",
+    number == 2 ~ "2 Tumors",
+    number == 3 ~ "3 Tumors",
+    number == 4 ~ "4 Tumors",
+    number == 5 ~ "5 Tumors",
+    number == 6 ~ "6 Tumors",
+    number == 7 ~ "7 Tumors",
+    number >= 8 ~ "8 or more Tumors",
+    TRUE ~ "Other"
+  )) %>% 
+  arrange(desc(count))
+
+
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=T, alpha=10, beta=15)) %>% 
+  hc_xAxis(categories=initial_tumors$tumor_category) %>% 
+  hc_add_series(data=initial_tumors$count, name="Count") %>%
+  hc_title(text="Total Initial Tumors & Their Categories") %>%
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.x + 
+                      '<br>Count: ' + this.y;
+        return tooltip;
+      }"
+    )
+  ) %>% 
+  hc_add_theme(hc_theme_sandsignika())
+
+```
+
+***
+
+# Types of treatments
+```{r}
+treatment <- df %>% 
+  select(treatment) %>% 
+  group_by(treatment) %>% 
+  summarize(count = n())
+
+total_count <- sum(treatment$count)
+treatment$percentage <- round((treatment$count / total_count) * 100, 2)
+
+treatment %>% 
+  hchart(type = "pie", hcaes(x = treatment, y = percentage), showInLegend = TRUE, 
+         legend = list(layout = "vertical", align = "right", 
+                       verticalAlign = "middle", borderWidth = 0.5)) %>% 
+  hc_title(text = 'Treatment Distribution') %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_chart(options3d = list(enabled = TRUE, alpha = 45, beta = 0)) %>% 
+  hc_plotOptions(pie = list(innerSize = 100, depth = 45,
+                            dataLabels = list(enabled = TRUE,
+                                              format = "<b>{point.percentage:.2f}%</b>")),
+                 tooltip = list(pointFormat = "<b>{point.percentage:.2f}%</b>"))
+
+
+
+```
+
+***
+
+# Recurrence
+
+```{r}
+recurring_treatment<-df %>% 
+  select(treatment, recur) %>% 
+  filter(recur!=0) %>% 
+  group_by(treatment, recur) %>% 
+  summarise(count = n(), .groups = "drop") %>% 
+  mutate(tumor_category = case_when(
+    recur == 0 ~ "Zero Tumors - No Recurrence",
+    recur == 1 ~ "1 Tumor",
+    recur == 2 ~ "2 Tumors",
+    recur == 3 ~ "3 Tumors",
+    recur == 4 ~ "4 Tumors",
+    recur == 5 ~ "5 Tumors",
+    recur == 6 ~ "6 Tumors",
+    recur == 7 ~ "7 Tumors",
+    recur >= 8 ~ "8 or more Tumors",
+    TRUE ~ "Other"
+  ))
+
+## Placebo Recurrence
+placebo_recurrence<-recurring_treatment %>% 
+  filter(treatment=="placebo")
+
+placebo_recurrence_chart<-highchart() %>% 
+  hc_chart(type = "column", options3d = list(enabled = TRUE, alpha = 10, beta = 15)) %>% 
+  hc_xAxis(categories = placebo_recurrence$tumor_category, title = list(text = "Count")) %>% 
+  hc_add_series(data = placebo_recurrence$count, name = "Count") %>%
+  hc_title(text = "Recurring Tumors After Placebo Treatment") %>% 
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.x + 
+                      '<br>Count: ' + this.y;
+        return tooltip;
+      }"
+    )
+  ) %>% 
+  hc_add_theme(hc_theme_sandsignika())
+
+
+## Pyridoxine Recurrence
+pyridoxine_recurrence<-recurring_treatment %>% 
+  filter(treatment=="pyridoxine")
+
+pyridoxine_recurrence_chart<-highchart() %>% 
+  hc_chart(type = "column", options3d = list(enabled = TRUE, alpha = 10, beta = 15)) %>% 
+  hc_xAxis(categories = pyridoxine_recurrence$tumor_category, title = list(text = "Count")) %>% 
+  hc_add_series(data = pyridoxine_recurrence$count, name = "Count") %>%
+  hc_title(text = "Recurring Tumors After Pyridoxine Treatment") %>% 
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.x + 
+                      '<br>Count: ' + this.y;
+        return tooltip;
+      }"
+    )
+  ) %>% 
+  hc_add_theme(hc_theme_google())
+
+# Thiotepa Recurrence
+thiotepa_recurrence<-recurring_treatment %>% 
+  filter(treatment=="thiotepa")
+
+thiotepa_recurrence_chart<-highchart() %>% 
+  hc_chart(type = "column", options3d = list(enabled = TRUE, alpha = 10, beta = 15)) %>% 
+  hc_xAxis(categories = thiotepa_recurrence$tumor_category, title = list(text = "Count")) %>% 
+  hc_add_series(data = thiotepa_recurrence$count, name = "Count") %>%
+  hc_title(text = "Recurring Tumors After Thiotepa Treatment") %>% 
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.x + 
+                      '<br>Count: ' + this.y;
+        return tooltip;
+      }"
+    )
+  ) %>% 
+  hc_add_theme(hc_theme_hcrt())
+
+highcharter::hw_grid(
+  placebo_recurrence_chart,
+  pyridoxine_recurrence_chart,
+  thiotepa_recurrence_chart) %>% 
+  htmltools::browsable()
+
+```
+
+***
+
+# Number of Tumors Found in Patients where Recurrence is Observed
+```{r}
+recurring_tumors<-df %>% 
+  select(rtumor) %>% 
+  group_by(rtumor) %>% 
+  summarize(count = n()) %>%
+  mutate(tumor_category = case_when(
+    rtumor == 0 ~ "Zero Tumors - No Tumors Found",
+    rtumor == 1 ~ "1 Tumor",
+    rtumor == 2 ~ "2 Tumors",
+    rtumor == 3 ~ "3 Tumors",
+    rtumor == 4 ~ "4 Tumors",
+    rtumor == 5 ~ "5 Tumors",
+    rtumor == 6 ~ "6 Tumors",
+    rtumor == 7 ~ "7 Tumors",
+    rtumor >= 8 ~ "8 or more Tumors",
+    TRUE ~ "Other"
+  )) %>%
+  arrange(desc(count))
+
+highchart() %>% 
+  hc_chart(type="column", options3d=list(enabled=T, alpha=10, beta=15)) %>% 
+  hc_xAxis(categories=recurring_tumors$tumor_category) %>% 
+  hc_add_series(data=recurring_tumors$count, name="Count") %>%
+  hc_title(text="Total Number of Tumors Found At Recurrence") %>% 
+  hc_add_theme(hc_theme_sandsignika())
+
+```
+
+***
+
+# Recurrence Based on Treatment
+```{r}
+
+recurrences_based_on_treatment<-df %>% 
+  select(treatment, recur) %>%
+  filter(recur!=0) %>% 
+  group_by(treatment,recur) %>% 
+  summarise(count = n())
+
+aggregated_data <- recurrences_based_on_treatment %>%
+  group_by(treatment, recur)
+
+
+grouped_data <- aggregated_data %>%
+  group_by(treatment) %>%
+  summarize(total_count = sum(count))
+
+grouped_data$percentage <- round(grouped_data$total_count / sum(grouped_data$total_count) * 100,2)
+
+grouped_data %>% 
+  hchart(type = "pie", hcaes(x = treatment, y = percentage), showInLegend = TRUE, 
+         legend = list(layout = "vertical", align = "right", 
+                       verticalAlign = "middle", borderWidth = 0.5)) %>% 
+  hc_title(text = 'Percentage Recurrence') %>%
+  hc_add_theme(hc_theme_google()) %>%
+  hc_chart(options3d = list(enabled = TRUE, alpha = 45, beta = 0)) %>% 
+  hc_plotOptions(pie = list(innerSize = 100, depth = 45,
+                            dataLabels = list(enabled = TRUE,
+                                              format = "<b>{point.percentage:.2f}%</b>")),
+                 tooltip = list(pointFormat = "<b>{point.percentage:.2f}%</b>"))
+
+
+```
+
+***
+
+# Initial tumors vs Recurring Tumors (Total)
+
+```{r}
+## Chart 1: Initial Tumors
+chart1 <- highchart() %>%
+  hc_chart(type = "bubble") %>%
+  hc_xAxis(
+    type = "linear",
+    tickInterval = 1,
+    min = 0,
+    lineWidth = 1,
+    tickWidth = 1
+  ) %>%
+  hc_add_series(
+    data = initial_tumors,
+    hcaes(x = number, y = count),
+    name = "Initial tumors",
+    type = "column",
+    color = "purple",
+    dataLabels = list(enabled = TRUE, format = "{point.y}")
+  ) %>%
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.point.tumor_category + 
+                      '<br>Count: ' + this.point.count;
+        return tooltip;
+      }"
+    )
+  ) %>%
+  hc_title(text = "Initial Tumors (By Tumor Count)")
+
+## Chart 2: Recurring Tumors
+chart2 <- highchart() %>%
+  hc_chart(type = "spline") %>%
+  hc_xAxis(
+    type = "linear",
+    tickInterval = 1,
+    min = 0,
+    lineWidth = 1,
+    tickWidth = 1
+  ) %>%
+  hc_add_series(
+    data = recurring_tumors,
+    hcaes(x = rtumor, y = count),
+    name = "Recurring tumors",
+    type = "column",
+    color = "red",
+    dataLabels = list(enabled = TRUE, format = "{point.y}")
+  ) %>%
+  hc_tooltip(
+    shared = FALSE,
+    formatter = JS(
+      "function() {
+        var tooltip = '<b>' + this.series.name + '</b>' + 
+                      '<br>Tumor category: ' + this.point.tumor_category + 
+                      '<br>Count: ' + this.point.count;
+        return tooltip;
+      }"
+    )
+  ) %>%
+  hc_title(text = "Recurring Tumors (By Tumor Count)")
+
+highcharter::hw_grid(
+  chart1,
+  chart2) %>% 
+  htmltools::browsable()
+
+```
+
+***
+
+# Survival Rate
+```{r}
+library(survival)
+
+surv_object <- with(df, Surv(start, stop, status == 1))
+
+fit <- survfit(surv_object ~ 1)
+
+plot_data <- data.frame(time = fit$time, cumhazard = fit$cumhaz)
+highchart() %>%
+  hc_xAxis(title = list(text = "Timeline")) %>%
+  hc_yAxis(title = list(text = "Cumulative Hazard Rate")) %>%
+  hc_add_series(data = plot_data, type = "line", hcaes(x = time, y = cumhazard))
+
+
+```
+
+<div style="border: 1px solid black; padding: 10px;">
+  <h4><strong style="color: blue;">Findings:</strong></h4>
+  <h5 style="color: green;">Most tumors were treated with Placebo (43.54%) followed by Pyridoxine (28.91%) and Thiotepa (27.55%).</h5>
+  <h5 style="color: green;"> Cases with 1 Tumor has highest recurrence (108 cases).</h5>
+  <h5 style="color: green;"> Placebo treatment has highest recurrence (45.8%).</h5>
+  <h5 style="color: green;"> There were no tumors found in 108 cases where recurrence is observed.</h5>
+  <h5 style="color: green;"> The median cumulative hazard at time 30.50 is approximately 1.62421, indicating that around 50% of the events have occurred by that time.
+The cumulative hazard steadily increases with time, suggesting a higher risk of the event as time progresses.</h5>
+</div>
+
+***

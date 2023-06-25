@@ -1,0 +1,245 @@
+---
+title: "Twitter Data Analysis"
+author: "Dr. Shashikanth Vydyula"
+date: "`r Sys.Date()`"
+output: 
+  github_document:
+    df_print: paged
+    
+---
+
+```{r steup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = NA,
+  warning= FALSE,
+  message = FALSE,
+  fig.align='center'
+   
+    
+)
+```
+
+```{r}
+my_essential_packages<-c("tidyverse", "data.table", "dplyr", "readr", "skimr",
+                         "tibble", "tidyr", "purrr", "stringr", "forcats", 
+                         "janitor", "Tmisc", "class", "lubridate",
+                         "forecast", "timetk", "zoo",  "ggplot2",  
+                         "highcharter", "gganimate", "geonames", "ggmap", "maps", "plotly", 
+                         "RColorBrewer" ,"leaflet", "htmltools", "htmlwidgets", "tm", "wordcloud2", "SnowballC",
+                         "syuzhet","reshape2", "scales")
+
+invisible(lapply(my_essential_packages, require, character.only = TRUE, quietly = TRUE))
+
+```
+
+# Loading Dataset and data manipulation
+
+```{r}
+tweets<-fread("C:/Shashi/Data & Dashboards/Datasets/twitter_dataset.csv")
+
+tweets.txt <- tweets$Text
+tweets.txt <- str_replace_all(tweets.txt,"[^[:graph:]]", " ")
+## pre-processing text:
+clean.text = function(x)
+{
+  # convert to lower case
+  x = tolower(x)
+  # remove rt
+  x = gsub("rt", "", x)
+  # remove at
+  x = gsub("@\\w+", "", x)
+  # remove punctuation
+  x = gsub("[[:punct:]]", "", x)
+  # remove numbers
+  x = gsub("[[:digit:]]", "", x)
+  # remove links http
+  x = gsub("http\\w+", "", x)
+  # remove tabs
+  x = gsub("[ |\t]{2,}", "", x)
+  # remove blank spaces at the beginning
+  x = gsub("^ ", "", x)
+  # remove blank spaces at the end
+  x = gsub(" $", "", x)
+  # some other cleaning text
+  x = gsub('https://','',x)
+  x = gsub('http://','',x)
+  x = gsub('[^[:graph:]]', ' ',x)
+  x = gsub('[[:punct:]]', '', x)
+  x = gsub('[[:cntrl:]]', '', x)
+  x = gsub('\\d+', '', x)
+  x = str_replace_all(x,"[^[:graph:]]", " ")
+  return(x)
+}
+
+cleanText <- clean.text(tweets.txt)
+## remove empty results (if any)
+idx <- which(cleanText == " ")
+cleanText <- cleanText[cleanText != " "]
+
+```
+
+# Frequency of tweets
+
+```{r}
+daily_tweets <- as.data.frame(table(cut(tweets$Timestamp, breaks = "day")))
+
+
+
+hchart(daily_tweets, "line", hcaes(x = Var1, y = Freq)) %>%
+  hc_xAxis(title = list(text = "Date"), labels = list(rotation = -45, align = "right")) %>%
+  hc_yAxis(title = list(text = "Number of Tweets")) %>%
+  hc_title(text = "Number of Tweets per Day in 2023 (Jan-May")
+
+```
+
+------------------------------------------------------------------------
+
+# Frequently used words
+
+```{r}
+twitter_matrix<-TermDocumentMatrix(cleanText)
+twitter_matrix<-as.matrix(twitter_matrix)
+twitter_matrix[1:10, 1:20]
+
+p <- rowSums(twitter_matrix)
+p <- subset(p, p >= 375)
+
+barplot(p,
+        las = 2,
+        col = rainbow(50))
+
+words <- names(p)
+data <- data.frame(word = words, count = p)
+data<-data %>% 
+  arrange(desc(count))
+colors <- rainbow(nrow(data))
+
+top_10_words<-data %>% 
+  slice(1:10) %>% 
+  arrange(desc(count))
+
+highchart() %>%
+  hc_chart(type = "column") %>%
+  hc_xAxis(categories = top_10_words$word) %>%
+  hc_title(text = "Most frequently used words") %>%
+  hc_add_series(data = top_10_words$count, colorByPoint = TRUE, colors = colors)
+
+
+
+
+set.seed(123)
+wordcloud_plot <- wordcloud2(data = data.frame(word = names(p), freq = p),
+                             size = 1,
+                             minSize = 10,
+                             gridSize = 20,
+                             fontFamily = "sans-serif",
+                             color = "random-dark",
+                             backgroundColor = "white",
+                             fontWeight = "bold",
+                             shape = "circle",
+                             rotateRatio = 0.7)
+
+# Create the custom HTML widget with the title
+custom_widget <- tagList(
+  tags$h2("Most Frequently Used Words", style = "text-align: center;"),
+  wordcloud_plot
+)
+
+htmltools::browsable(custom_widget)
+
+
+```
+
+::: {style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#ff0066;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px"}
+```{=html}
+<p style="padding: 10px;
+              color:white;">
+```
+Most commonly used word is Pay.
+
+</p>
+:::
+
+------------------------------------------------------------------------
+
+# Sentiment Analysis
+
+```{r}
+
+twitter<-fread("C:/Shashi/Data & Dashboards/Datasets/twitter_dataset.csv")
+twitter<-iconv(twitter$Text)
+sentiment<-get_nrc_sentiment(twitter)
+
+# Create a data frame with the sentiment scores
+sentiment_data <- data.frame(sentiment = names(colSums(sentiment)), count = colSums(sentiment))
+
+# Generate a color palette for the columns
+colors <- rainbow(nrow(sentiment_data))
+
+# Convert count column to data frame
+count_data <- data.frame(count = sentiment_data$count)
+sentiment_data<-sentiment_data %>% 
+  arrange(desc(count))
+
+highchart() %>%
+  hc_chart(type = "column") %>%
+  hc_xAxis(categories = sentiment_data$sentiment) %>%
+  hc_add_series(data=sentiment_data$count) %>% 
+  hc_title(text = "Sentiment Scores Tweets") %>%
+  hc_plotOptions(column = list(colorByPoint = TRUE)) %>% 
+  hc_legend(enabled=F)
+
+
+
+```
+
+::: {style="color:white;
+           display:fill;
+           border-radius:10px;
+           background-color:#ff0066;
+           font-size:110%;
+           font-family:Courier New;
+           letter-spacing:0.5px"}
+```{=html}
+<p style="padding: 10px;
+              color:white;">
+```
+Tweets containing Positive words are most and the words that mean or indicate Disgut are least.
+
+</p>
+:::
+
+------------------------------------------------------------------------
+
+# Likes Vs Retweets (Minimum 85 likes and Retweets)
+
+```{r}
+tweets_retweets <-
+  fread("C:/Shashi/Data & Dashboards/Datasets/twitter_dataset.csv")
+
+tweets_retweets<- tweets_retweets %>% 
+  filter(Likes >= 85, Retweets >= 85) %>% 
+  arrange(desc(Likes))
+
+highchart() %>%
+  hc_chart(type = "column") %>%
+  hc_title(text = "Likes Vs Retweets (>=85)") %>%
+  hc_subtitle(text = "2023 (Jan - May)") %>%
+  hc_yAxis(min = 0, title = list(text = "Tweets")) %>%
+  hc_tooltip(headerFormat = "<span style='font-size:10px'>Tweet ID: {point.key}</span><table>",
+             pointFormat = paste0("<tr><td style='color:{series.color};padding:0'>{series.name}: </td>",
+                                  "<td style='padding:0'><b>{point.y}</b></td></tr>"),
+             footerFormat = "</table>",
+             shared = TRUE,
+             useHTML = TRUE) %>%
+  hc_add_series(data = tweets_retweets$Likes, name = "Likes", type = "column") %>% 
+  hc_add_series(data = tweets_retweets$Retweets, name = "Retweets", type = "spline")
+
+
+```

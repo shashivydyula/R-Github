@@ -1,0 +1,245 @@
+---
+title: "World’s Best Employers TOP 100"
+author: "Dr. Shashikanth Vydyula"
+date: "`r Sys.Date()`"
+output:
+  html_document:
+    df_print: paged
+    toc: true
+    number_sections: false
+    highlight: pygments
+    code_folding: show
+---
+
+<style type="text/css">
+
+h1.title {
+  font-size: 38px;
+  color: DarkRed;
+  text-align: center;
+}
+h4.author { /* Header 4 - and the author and data headers use this too  */
+    font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkRed;
+  text-align: center;
+}
+h4.date { /* Header 4 - and the author and data headers use this too  */
+  font-size: 18px;
+  font-family: "Times New Roman", Times, serif;
+  color: DarkBlue;
+  text-align: center;
+}
+</style>
+
+
+***
+
+```{r steup, include=FALSE}
+knitr::opts_chunk$set(
+  comment = NA,
+  warning= FALSE,
+  message = FALSE
+)
+```
+***
+
+```{r}
+# Package for data science
+library('tidyverse') # essential R packages for data science
+library('data.table')
+
+# general visualization
+library('ggplot2') # visualization
+library('datasauRus') # visualization
+
+# general data manipulation
+library('dplyr') # data manipulation
+library('readr') # input/output
+library('skimr') # overview
+library('tibble') # data wrangling
+library('tidyr') # data wrangling
+library('purrr') # data wrangling
+library('stringr') # string manipulation
+library('forcats') # factor manipulation
+library('janitor') # data cleaning
+library('Tmisc') # data manipulation
+library('class') # functions for classification
+
+# Date + forecast
+library('lubridate') # date and time
+library('forecast') # time series analysis
+library('timetk') # time series analysis
+
+# file referencing
+library('here') # refer files
+
+#others
+library('shiny')
+library('leaflet')
+library('ggmap')
+library('plotly')
+library('countrycode')
+library('mice')
+library('GGally')
+library('sf')
+
+
+```
+
+
+# Import Data set
+```{r}
+best_employees<-read.csv("C:/Shashi/Data & Dashboards/Datasets/Worlds Best Employers.csv")
+
+head(best_employees)
+summary(best_employees)
+```
+
+**The employees column is formatted as character with commas in between. I will format it to numeric.**
+```{r}
+
+best_employees$EMPLOYEES<-as.numeric(gsub(",","", best_employees$EMPLOYEES))
+summary(best_employees)
+
+```
+# Top 10 Companies
+
+```{r}
+top_10_companies<-best_employees %>% slice(1:10)
+
+tibble(top_10_companies)
+```
+**Samsung Electronics ranks 1st in the world**
+
+***
+
+# Company with highest number of employees
+
+```{r}
+highest_numer_of_employees<-
+  best_employees[order(best_employees$EMPLOYEES, decreasing = TRUE),] %>% 
+  slice(1:10)
+view(highest_numer_of_employees)
+
+highest_numer_of_employees$NAME  <- with(highest_numer_of_employees, reorder(NAME, EMPLOYEES))
+
+highest_employees<-ggplot(highest_numer_of_employees, aes(fill=NAME, y=EMPLOYEES, x=reorder(NAME, -EMPLOYEES)))+
+  geom_bar(position="dodge", stat="identity") +
+             labs(x="Company", y="Number of Employees")+
+  coord_flip()
+
+highest_employees
+```
+
+
+**Amazon has the Highest number of employees**
+
+***
+
+# Which industry has most companies
+```{r}
+top_10_industry<-best_employees %>% count(INDUSTRIES)
+
+top_10_industry<-
+  top_10_industry[order(top_10_industry$n, decreasing = TRUE),] %>% 
+  slice(1:10)
+view(top_10_industry)
+
+plot_ly(data=top_10_industry,labels=~INDUSTRIES, values=~n, type="pie") %>% 
+  layout(autosize = F, width = 1080, height = 450,title = 'Top 10 Industries',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+```
+
+> **IT, Internet, Software & services industry has highest companies (12) followed by Aerospace & Defense, Automotive, and Banking & Financial Services with 10 respective companies each.**
+
+***
+
+# Which country has highest number of companies
+```{r}
+country_with_highest_companies<-best_employees %>% 
+  count(COUNTRY.TERRITORY)
+
+country_with_highest_companies<-
+  country_with_highest_companies[order(country_with_highest_companies$n, decreasing = TRUE),] %>% 
+  slice(1:10)
+
+view(country_with_highest_companies)
+
+fig <- plot_ly(country_with_highest_companies, x = ~COUNTRY.TERRITORY, y = ~n, text = ~COUNTRY.TERRITORY, type = 'scatter', mode = 'markers',
+               marker = list(size = ~n, opacity = 0.5, color = 'rgb(255, 54, 54)'))
+fig <- fig %>% layout(title = 'Country with highest number of companies',
+                      xaxis = list(showgrid = FALSE),
+                      yaxis = list(showgrid = FALSE))
+fig
+
+```
+**USA has 40 top 100 companies**
+
+***
+
+# Company with least number of employees
+```{r}
+least_employees<-best_employees[order(best_employees$EMPLOYEES, decreasing = FALSE),] %>% 
+  slice(1:10)
+view(least_employees)
+
+least_employees$NAME  <- 
+  with(least_employees, reorder(NAME, EMPLOYEES))
+
+least_employees_plot<-ggplot(least_employees, aes(fill=NAME, y=EMPLOYEES, x=reorder(NAME, -EMPLOYEES)))+
+  geom_bar(position="dodge", stat="identity") +
+  labs(x="Company", y="Number of Employees") +
+  coord_flip()
+  
+ggplotly(least_employees_plot)
+
+
+```
+
+> **Mertiz Financial Group has least number of employees (20).**
+
+# Which industry has most employees in top 100
+```{r}
+top_10_industry_employees<-best_employees %>% 
+  count(INDUSTRIES, EMPLOYEES)
+
+top_10_industry_employees<- top_10_industry_employees %>% count(INDUSTRIES, wt=EMPLOYEES)
+
+top_10_industry_employees<-top_10_industry_employees[order(top_10_industry_employees$n, decreasing = TRUE),] %>% 
+  slice(1:10)
+
+view(top_10_industry_employees)
+
+plot_ly(data=top_10_industry_employees,labels=~INDUSTRIES, values=~n, type="pie") %>% 
+  layout(autosize = F, width = 1080, height = 450,title = 'Top 10 Industries with highest number of employees',
+         xaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = TRUE),
+         yaxis = list(showgrid = FALSE, zeroline = FALSE, showticklabels = FALSE))
+
+
+```
+**IT, Internet, Software & services has highest number with over 2.6 million employees**
+
+***
+
+<div class="alert alert-block alert-info">
+**CONCULSION:**
+
+
+1. Samsung Ranks first in best company of the world.
+
+
+2. Amazon has highest number of employees with nearly 1.6 million.
+
+
+3. IT, Internet, Software & Services industry has highest number of employees with over 2.6 million.
+
+
+4. Mertiz Financial Group has least number of employees (20).
+
+
+5. USA has 40 companies that rank in top 100 World Best Employers.
+
+
+</div>
